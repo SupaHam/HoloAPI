@@ -12,4 +12,4 @@ Apply the patches: `./applyPatches.sh`
 
 Compile HoloAPI: `./compile.sh`
 
-The HoloAPI binary will be located in build/CraftBukkit/target.
+The HoloAPI binary will be located in build/HoloAPI/target.
