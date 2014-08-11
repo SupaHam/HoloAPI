@@ -1,31 +1,14 @@
-From 4c432cc6ceb831bdd3a174478e8379df47b16dfb Mon Sep 17 00:00:00 2001
+From 98b4d96e3128506d84f2500d7421e68818e1cf56 Mon Sep 17 00:00:00 2001
 From: Ali Moghnieh <SupaHam.me@gmail.com>
 Date: Sun, 10 Aug 2014 23:17:47 +0100
 Subject: [PATCH] Implemented Hologram radius.
 
 
 diff --git a/src/main/java/com/dsh105/holoapi/api/HoloFactory.java b/src/main/java/com/dsh105/holoapi/api/HoloFactory.java
-index 8ac8072..ad29eb6 100644
+index 6425d29..3870baf 100644
 --- a/src/main/java/com/dsh105/holoapi/api/HoloFactory.java
 +++ b/src/main/java/com/dsh105/holoapi/api/HoloFactory.java
-@@ -18,7 +18,6 @@
- package com.dsh105.holoapi.api;
- 
- import com.dsh105.holoapi.HoloAPI;
--import com.dsh105.holoapi.HoloAPICore;
- import com.dsh105.holoapi.api.visibility.Visibility;
- import com.dsh105.holoapi.api.visibility.VisibilityDefault;
- import com.dsh105.holoapi.exceptions.HologramNotPreparedException;
-@@ -29,8 +28,6 @@ import org.bukkit.Location;
- import org.bukkit.plugin.Plugin;
- import org.bukkit.util.Vector;
- 
--import java.util.logging.Level;
--
- /**
-  * Represents a factory for building new Holograms
-  */
-@@ -47,6 +44,7 @@ public abstract class HoloFactory {
+@@ -44,6 +44,7 @@ public abstract class HoloFactory {
      protected boolean simple = false;
      protected int tagId;
      protected boolean withTagId;
@@ -33,7 +16,7 @@ index 8ac8072..ad29eb6 100644
  
      private boolean prepared = false;
      private boolean preparedId = false;
-@@ -125,6 +123,17 @@ public abstract class HoloFactory {
+@@ -122,6 +123,17 @@ public abstract class HoloFactory {
          return this;
      }
  
@@ -51,21 +34,14 @@ index 8ac8072..ad29eb6 100644
      public abstract boolean canBuild();
  
      public abstract Hologram prepareHologram();
-@@ -154,6 +163,7 @@ public abstract class HoloFactory {
+@@ -151,6 +163,7 @@ public abstract class HoloFactory {
          Hologram hologram = prepareHologram();
-         hologram.setVisibility(this.visibility);
          hologram.setSimplicity(this.simple);
+         hologram.setVisibility(this.visibility);
 +        hologram.setRadius(this.radius);
          hologram.showNearby();
          HoloAPI.getManager().track(hologram, this.owningPlugin);
          return hologram;
-@@ -177,4 +187,4 @@ public abstract class HoloFactory {
-         this.worldName = worldName;
-         return this;
-     }
--}
-\ No newline at end of file
-+}
 diff --git a/src/main/java/com/dsh105/holoapi/api/Hologram.java b/src/main/java/com/dsh105/holoapi/api/Hologram.java
 index c3a9521..e53bb25 100644
 --- a/src/main/java/com/dsh105/holoapi/api/Hologram.java
