@@ -1,0 +1,244 @@
+From 4c432cc6ceb831bdd3a174478e8379df47b16dfb Mon Sep 17 00:00:00 2001
+From: Ali Moghnieh <SupaHam.me@gmail.com>
+Date: Sun, 10 Aug 2014 23:17:47 +0100
+Subject: [PATCH] Implemented Hologram radius.
+
+
+diff --git a/src/main/java/com/dsh105/holoapi/api/HoloFactory.java b/src/main/java/com/dsh105/holoapi/api/HoloFactory.java
+index 8ac8072..ad29eb6 100644
+--- a/src/main/java/com/dsh105/holoapi/api/HoloFactory.java
++++ b/src/main/java/com/dsh105/holoapi/api/HoloFactory.java
+@@ -18,7 +18,6 @@
+ package com.dsh105.holoapi.api;
+ 
+ import com.dsh105.holoapi.HoloAPI;
+-import com.dsh105.holoapi.HoloAPICore;
+ import com.dsh105.holoapi.api.visibility.Visibility;
+ import com.dsh105.holoapi.api.visibility.VisibilityDefault;
+ import com.dsh105.holoapi.exceptions.HologramNotPreparedException;
+@@ -29,8 +28,6 @@ import org.bukkit.Location;
+ import org.bukkit.plugin.Plugin;
+ import org.bukkit.util.Vector;
+ 
+-import java.util.logging.Level;
+-
+ /**
+  * Represents a factory for building new Holograms
+  */
+@@ -47,6 +44,7 @@ public abstract class HoloFactory {
+     protected boolean simple = false;
+     protected int tagId;
+     protected boolean withTagId;
++    protected int radius;
+ 
+     private boolean prepared = false;
+     private boolean preparedId = false;
+@@ -125,6 +123,17 @@ public abstract class HoloFactory {
+         return this;
+     }
+ 
++    /**
++     * Sets the radius of constructed Holograms.
++     *
++     * @param radius radius of constructed Holograms
++     * @return This object
++     */
++    public HoloFactory withRadius(int radius) {
++        this.radius = radius;
++        return this;
++    }
++    
+     public abstract boolean canBuild();
+ 
+     public abstract Hologram prepareHologram();
+@@ -154,6 +163,7 @@ public abstract class HoloFactory {
+         Hologram hologram = prepareHologram();
+         hologram.setVisibility(this.visibility);
+         hologram.setSimplicity(this.simple);
++        hologram.setRadius(this.radius);
+         hologram.showNearby();
+         HoloAPI.getManager().track(hologram, this.owningPlugin);
+         return hologram;
+@@ -177,4 +187,4 @@ public abstract class HoloFactory {
+         this.worldName = worldName;
+         return this;
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/main/java/com/dsh105/holoapi/api/Hologram.java b/src/main/java/com/dsh105/holoapi/api/Hologram.java
+index c3a9521..e53bb25 100644
+--- a/src/main/java/com/dsh105/holoapi/api/Hologram.java
++++ b/src/main/java/com/dsh105/holoapi/api/Hologram.java
+@@ -17,16 +17,15 @@
+ 
+ package com.dsh105.holoapi.api;
+ 
++import java.util.ArrayList;
++import java.util.HashMap;
++
+ import com.dsh105.holoapi.api.touch.TouchAction;
+ import com.dsh105.holoapi.api.visibility.Visibility;
+ import org.bukkit.Location;
+ import org.bukkit.entity.Player;
+ import org.bukkit.util.Vector;
+ 
+-import java.util.ArrayList;
+-import java.util.HashMap;
+-import java.util.Map;
+-
+ /**
+  * Represents an Hologram that consists of either image or text
+  */
+@@ -494,4 +493,27 @@ public interface Hologram {
+      * @param observer player to clear the hologram display for
+      */
+     public void clear(Player observer);
++
++    /**
++     * Gets this {@link Hologram}'s visible radius.
++     *
++     * @return visible radius
++     */
++    public int getRadius();
++
++    /**
++     * Sets this {@link Hologram}'s visible radius.
++     *
++     * @param radius visible radius
++     */
++    public void setRadius(int radius);
++
++    /**
++     * Checks if a {@link Player} is within this {@link Hologram}'s radius.
++     *
++     * @param observer player to check
++     * @return true if the radius is equals or smaller than 0, or if the {@code observer}'s distance from this
++     * hologram's location is within this hologram's radius.
++     */
++    public boolean isWithinRadius(Player observer);
+ }
+diff --git a/src/main/java/com/dsh105/holoapi/api/HologramImpl.java b/src/main/java/com/dsh105/holoapi/api/HologramImpl.java
+index 47e386d..461c2a7 100644
+--- a/src/main/java/com/dsh105/holoapi/api/HologramImpl.java
++++ b/src/main/java/com/dsh105/holoapi/api/HologramImpl.java
+@@ -1,5 +1,11 @@
+ package com.dsh105.holoapi.api;
+ 
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.HashMap;
++import java.util.Iterator;
++import java.util.Map;
++
+ import com.captainbern.minecraft.protocol.PacketType;
+ import com.captainbern.minecraft.reflection.MinecraftReflection;
+ import com.captainbern.minecraft.wrapper.WrappedDataWatcher;
+@@ -27,8 +33,6 @@ import org.bukkit.inventory.ItemStack;
+ import org.bukkit.scheduler.BukkitRunnable;
+ import org.bukkit.util.Vector;
+ 
+-import java.util.*;
+-
+ public class HologramImpl implements Hologram {
+ 
+     private static MethodAccessor AS_NMS_ITEM_COPY  = new Reflection().reflect(MinecraftReflection.getCraftItemStackClass()).getSafeMethod("asNMSCopy").getAccessor();
+@@ -49,6 +53,7 @@ public class HologramImpl implements Hologram {
+     private boolean simple = false;
+     private boolean touchEnabled;
+     private Visibility visibility = new VisibilityDefault();
++    private int radius;
+ 
+     protected HologramImpl(int firstTagId, String saveId, String worldName, double x, double y, double z, String... lines) {
+         this(worldName, x, y, z);
+@@ -551,6 +556,29 @@ public class HologramImpl implements Hologram {
+         this.playerToLocationMap.remove(IdentUtil.getIdentificationForAsString(observer));
+     }
+ 
++    @Override
++    public int getRadius() {
++        return radius;
++    }
++
++    @Override
++    public void setRadius(int radius) {
++        this.radius = radius;
++    }
++
++    @Override
++    public boolean isWithinRadius(Player observer) {
++        if (radius <= 0) {
++            return true;
++        }
++
++        Vector loc = getLocationFor(observer);
++        if (loc == null) {
++            loc = getDefaultLocation().toVector();
++        }
++        return observer.getLocation().toVector().distance(loc) <= radius;
++    }
++
+     protected void setImageTagMap(HashMap<TagSize, String> map) {
+         this.imageIdMap = map;
+     }
+diff --git a/src/main/java/com/dsh105/holoapi/listeners/HoloListener.java b/src/main/java/com/dsh105/holoapi/listeners/HoloListener.java
+index 9a39516..3904a9c 100644
+--- a/src/main/java/com/dsh105/holoapi/listeners/HoloListener.java
++++ b/src/main/java/com/dsh105/holoapi/listeners/HoloListener.java
+@@ -21,7 +21,7 @@ import com.dsh105.holoapi.HoloAPI;
+ import com.dsh105.holoapi.api.AnimatedHologram;
+ import com.dsh105.holoapi.api.Hologram;
+ import com.dsh105.holoapi.api.events.HoloLineUpdateEvent;
+-import com.dsh105.holoapi.config.Settings;
++import org.bukkit.Location;
+ import org.bukkit.entity.Entity;
+ import org.bukkit.entity.Player;
+ import org.bukkit.event.EventHandler;
+@@ -29,10 +29,10 @@ import org.bukkit.event.EventPriority;
+ import org.bukkit.event.Listener;
+ import org.bukkit.event.player.PlayerChangedWorldEvent;
+ import org.bukkit.event.player.PlayerJoinEvent;
++import org.bukkit.event.player.PlayerMoveEvent;
+ import org.bukkit.event.player.PlayerQuitEvent;
+ import org.bukkit.event.player.PlayerTeleportEvent;
+ import org.bukkit.event.world.ChunkLoadEvent;
+-import org.bukkit.event.world.ChunkUnloadEvent;
+ import org.bukkit.scheduler.BukkitRunnable;
+ 
+ public class HoloListener implements Listener {
+@@ -122,4 +122,32 @@ public class HoloListener implements Listener {
+             }
+         }
+     }
++    
++    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
++    public void onPlayerMove(PlayerMoveEvent event) {
++        Location from = event.getFrom();
++        Location to = event.getTo();
++        if (from.getBlockX() == to.getBlockX() &&
++            from.getBlockY() == to.getBlockY() &&
++            from.getBlockZ() == to.getBlockZ()) {
++            return;
++        }
++
++        Player player = event.getPlayer();
++        String worldName = to.getWorld().getName();
++        for (Hologram h : HoloAPI.getManager().getAllHolograms().keySet()) {
++            if (!worldName.equals(h.getWorldName())) {
++                continue;
++            }
++
++            if (h.isWithinRadius(player)) {
++                if (h.getLocationFor(player) == null) { // Lets check that we're not sending the same location to the 
++                    // player... This prevents the hologram from being spawned for the player every time they move.
++                    h.show(player, true);
++                }
++            } else {
++                h.clear(player);
++            }
++        }
++    }
+ }
+-- 
+1.9.4.msysgit.0
+
