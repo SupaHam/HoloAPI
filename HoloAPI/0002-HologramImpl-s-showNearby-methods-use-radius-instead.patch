@@ -1,0 +1,31 @@
+From 561c58ef251eac871c6bc773d5ac6f148cd3c7ce Mon Sep 17 00:00:00 2001
+From: Ali Moghnieh <SupaHam.me@gmail.com>
+Date: Mon, 11 Aug 2014 09:55:15 +0100
+Subject: [PATCH] HologramImpl's showNearby methods use radius instead of -1.
+
+
+diff --git a/src/main/java/com/dsh105/holoapi/api/HologramImpl.java b/src/main/java/com/dsh105/holoapi/api/HologramImpl.java
+index 461c2a7..b75692d 100644
+--- a/src/main/java/com/dsh105/holoapi/api/HologramImpl.java
++++ b/src/main/java/com/dsh105/holoapi/api/HologramImpl.java
+@@ -476,7 +476,7 @@ public class HologramImpl implements Hologram {
+ 
+     @Override
+     public void showNearby(Location origin, boolean obeyVisibility, int radius) {
+-        for (Player player : GeometryUtil.getNearbyPlayers(origin, radius)) {
++        for (Player player : GeometryUtil.getNearbyPlayers(origin, radius == 0 ? -1 : radius)) {
+             this.show(player, obeyVisibility);
+         }
+     }
+@@ -498,7 +498,7 @@ public class HologramImpl implements Hologram {
+ 
+     @Override
+     public void showNearby(boolean obeyVisibility) {
+-        this.showNearby(getDefaultLocation(), obeyVisibility, -1);
++        this.showNearby(getDefaultLocation(), obeyVisibility, this.radius);
+     }
+ 
+     @Override
+-- 
+1.9.4.msysgit.0
+
